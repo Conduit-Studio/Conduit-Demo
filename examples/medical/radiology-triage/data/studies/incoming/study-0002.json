@@ -1,0 +1,19 @@
+{
+  "study_id": "ST-SIIM-0002",
+  "modality": "CR",
+  "source_dataset": "siim_small",
+  "series": [
+    {
+      "series_id": "S1",
+      "key": "studies/raw/ST-SIIM-0002/s1/",
+      "instance_count": 1
+    }
+  ],
+  "expected": {
+    "label": "Pneumothorax",
+    "urgency_class": "critical",
+    "findings": [
+      "pneumothorax"
+    ]
+  }
+}

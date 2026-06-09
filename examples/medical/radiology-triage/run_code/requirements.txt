@@ -1,0 +1,14 @@
+# Runtime dependencies for the medical Run Code nodes.
+#
+# Upload this file as the requirements.txt for both medical Run Code nodes.
+#
+# Run the focused local tests:
+#
+#     uv run python -m unittest examples/medical/test_run_code.py
+
+boto3>=1.34.0
+joblib>=1.4.0
+numpy>=1.26.0
+pillow>=10.0.0
+pydicom>=3.0.1
+scikit-learn>=1.5.0
