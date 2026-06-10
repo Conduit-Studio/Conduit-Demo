@@ -8,6 +8,8 @@ This is a demo workflow, not a clinical model.
 
 ```text
 examples/medical/radiology-triage/
+  data/conduit/read-study/input.json
+  data/conduit/infer-urgency/input.json
   data/studies/incoming/*.json
   data/studies/raw/ST-SIIM-*/s1/*.dcm
   model/pneumothorax_rf.joblib
@@ -16,6 +18,22 @@ examples/medical/radiology-triage/
   run_code/requirements.txt
   tests/test_run_code.py
 ```
+
+## Verify Code
+
+After binding this repository and branch to a Conduit workflow, verify each Run Code entry before deploying:
+
+1. Verify `read_study`
+   - Entry: `examples/medical/radiology-triage/run_code/read_study.py`
+   - Handler: `main`
+   - Fixture JSON: `examples/medical/radiology-triage/data/conduit/read-study/input.json`
+
+2. Verify `infer_urgency`
+   - Entry: `examples/medical/radiology-triage/run_code/infer_urgency.py`
+   - Handler: `main`
+   - Fixture JSON: `examples/medical/radiology-triage/data/conduit/infer-urgency/input.json`
+
+The fixture JSON is the payload passed to `main(inputs)` during the check. The checked-in fixtures point at the hosted demo bucket `try-conduit-app`. If you copy this workflow to your own bucket, update the bucket values in the fixture JSON files and in the model Config JSON.
 
 ## Conduit Nodes
 
@@ -39,14 +57,14 @@ Use these workflow nodes:
 ```
 
 3. Run Code: `read_study`
-   - Code: `run_code/read_study.py`
-   - Requirements: `run_code/requirements.txt`
+   - Code: `examples/medical/radiology-triage/run_code/read_study.py`
+   - Requirements: `examples/medical/radiology-triage/run_code/requirements.txt`
    - Input: `manifest`
    - Output: `features`
 
 4. Run Code: `infer_urgency`
-   - Code: `run_code/infer_urgency.py`
-   - Requirements: `run_code/requirements.txt`
+   - Code: `examples/medical/radiology-triage/run_code/infer_urgency.py`
+   - Requirements: `examples/medical/radiology-triage/run_code/requirements.txt`
    - Inputs: `features`, `model`
    - Output: `urgency`
 
@@ -65,6 +83,8 @@ s3://your-demo-bucket/examples/medical/radiology-triage/data/studies/incoming/st
 s3://your-demo-bucket/examples/medical/radiology-triage/data/studies/raw/ST-SIIM-0001/s1/000000.dcm
 s3://your-demo-bucket/examples/medical/radiology-triage/model/pneumothorax_rf.joblib
 ```
+
+The `data/conduit/.../input.json` files stay in GitHub. They are only used by Verify Code.
 
 With AWS CLI:
 
