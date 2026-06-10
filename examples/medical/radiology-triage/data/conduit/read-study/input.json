@@ -1,0 +1,6 @@
+{
+  "manifest": {
+    "bucket": "try-conduit-app",
+    "key": "examples/medical/radiology-triage/data/studies/incoming/study-0002.json"
+  }
+}
