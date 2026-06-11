@@ -1,0 +1,131 @@
+{
+  "image_id": "person-walk-001",
+  "label": "person",
+  "model": {
+    "name": "yolo-keypoints-demo",
+    "version": "pose-demo-v1"
+  },
+  "confidence": 0.93,
+  "source_annotation_id": 101,
+  "keypoints": [
+    {
+      "name": "nose",
+      "x": 78,
+      "y": 42,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_eye",
+      "x": 73,
+      "y": 39,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_eye",
+      "x": 83,
+      "y": 39,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_ear",
+      "x": 68,
+      "y": 42,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_ear",
+      "x": 88,
+      "y": 42,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_shoulder",
+      "x": 62,
+      "y": 62,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_shoulder",
+      "x": 94,
+      "y": 62,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_elbow",
+      "x": 54,
+      "y": 83,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_elbow",
+      "x": 103,
+      "y": 78,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_wrist",
+      "x": 47,
+      "y": 103,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_wrist",
+      "x": 111,
+      "y": 95,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_hip",
+      "x": 68,
+      "y": 98,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_hip",
+      "x": 90,
+      "y": 98,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_knee",
+      "x": 57,
+      "y": 118,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_knee",
+      "x": 103,
+      "y": 117,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "left_ankle",
+      "x": 49,
+      "y": 133,
+      "visibility": 2,
+      "confidence": 0.93
+    },
+    {
+      "name": "right_ankle",
+      "x": 112,
+      "y": 132,
+      "visibility": 2,
+      "confidence": 0.93
+    }
+  ]
+}

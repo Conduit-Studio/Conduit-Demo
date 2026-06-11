@@ -1,0 +1,12 @@
+{
+  "image": {
+    "bucket": "try-conduit-app",
+    "key": "examples/vision/yolo-keypoints/data/processed/images/person-walk-001-processed.png"
+  },
+  "predictions": {
+    "bucket": "try-conduit-app",
+    "key": "examples/vision/yolo-keypoints/data/predictions/person-walk-001-keypoints.json"
+  },
+  "output_bucket": "try-conduit-app",
+  "output_prefix": "examples/vision/yolo-keypoints/data/outputs/overlays/"
+}

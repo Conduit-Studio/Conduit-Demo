@@ -1,0 +1,2 @@
+# Install from this example root for local smoke tests.
+-r run_code/requirements.txt
