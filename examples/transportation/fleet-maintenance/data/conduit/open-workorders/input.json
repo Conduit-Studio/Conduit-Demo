@@ -1,0 +1,26 @@
+{
+  "critical": {
+    "count": 2,
+    "vehicles": ["veh-001", "veh-004"],
+    "items": [
+      {
+        "vehicle": "veh-001",
+        "risk_tier": "critical",
+        "risk_score": 0.92,
+        "active_faults": ["P0301"],
+        "stats": {
+          "brake_pad_min_mm": 1.8
+        }
+      },
+      {
+        "vehicle": "veh-004",
+        "risk_tier": "critical",
+        "risk_score": 0.88,
+        "active_faults": ["C1234"],
+        "stats": {
+          "brake_pad_min_mm": 2.2
+        }
+      }
+    ]
+  }
+}

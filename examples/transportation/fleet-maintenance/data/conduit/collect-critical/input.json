@@ -1,0 +1,40 @@
+{
+  "results": [
+    {
+      "vehicle_health": {
+        "pk": "VEHICLE#veh-001",
+        "vehicle": "veh-001",
+        "risk_tier": "critical",
+        "risk_score": 0.92,
+        "active_faults": ["P0301"],
+        "stats": {
+          "brake_pad_min_mm": 1.8
+        }
+      }
+    },
+    {
+      "vehicle_health": {
+        "pk": "VEHICLE#veh-003",
+        "vehicle": "veh-003",
+        "risk_tier": "routine",
+        "risk_score": 0.08,
+        "active_faults": [],
+        "stats": {
+          "brake_pad_min_mm": 8.1
+        }
+      }
+    },
+    {
+      "vehicle_health": {
+        "pk": "VEHICLE#veh-004",
+        "vehicle": "veh-004",
+        "risk_tier": "critical",
+        "risk_score": 0.88,
+        "active_faults": ["C1234"],
+        "stats": {
+          "brake_pad_min_mm": 2.2
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+timestamp,vehicle_id,engine_temp_c,oil_pressure_psi,brake_pad_mm,dtc_codes,odometer_km,harsh_brake_count,harsh_accel_count
+2026-06-05T02:00:00Z,veh-007,87,42,7.5,OK,38700,0,0
+2026-06-05T02:05:00Z,veh-007,88,42,7.4,OK,38706,0,0
+2026-06-05T02:10:00Z,veh-007,89,41,7.4,OK,38712,0,0
+2026-06-05T02:15:00Z,veh-007,88,42,7.3,OK,38718,0,0
+2026-06-05T02:20:00Z,veh-007,87,43,7.3,OK,38724,0,0
