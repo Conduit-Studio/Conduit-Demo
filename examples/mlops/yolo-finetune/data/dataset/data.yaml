@@ -1,0 +1,10 @@
+# YOLO dataset config. Paths are relative to THIS file = the `dataset` channel root
+# (SageMaker mounts the channel at /opt/ml/input/data/dataset inside the training container).
+#
+# This static copy lets you read the shape without running the generator. Running
+# scripts/make_demo_dataset.py overwrites it and fills images/ + labels/.
+path: .
+train: images/train
+val: images/val
+nc: 2
+names: [circle, rectangle]

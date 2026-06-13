@@ -1,0 +1,3 @@
+# Training-container deps. torch/torchvision come from the CUDA base image (see Dockerfile);
+# ultralytics pulls opencv-python, numpy, pandas, etc. Pin for reproducible images.
+ultralytics>=8.2.0,<9
