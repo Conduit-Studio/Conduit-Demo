@@ -1,19 +1,22 @@
 """Conduit Run Code step: render keypoint labels into a visual preview artifact.
 
 Inputs:
-    image/preprocessed: S3 ref for the processed image.
-    predictions: S3 ref for prediction JSON, or an inline prediction object.
-    output_bucket: bucket where overlay and label artifacts should be written.
-    output_prefix: S3 prefix for overlay PNG files.
+    image: file port — local path to the processed image (Conduit downloads it).
+    image_id: json — logical image id (threaded from upstream).
+    prediction: json — an inline prediction object, OR
+    predictions: file port — local path to a prediction JSON.
 
 Output ports:
-    overlay: S3 ref to a PNG preview.
-    labels: S3 ref to a small JSON summary.
+    overlay: file port — local path to a PNG preview (Conduit uploads it).
+    labels: file port — local path to a small JSON summary (Conduit uploads it).
+    summary: json — a compact label summary.
 """
 
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -21,40 +24,27 @@ _RUN_CODE_DIR = Path(__file__).resolve().parent
 if str(_RUN_CODE_DIR) not in sys.path:
     sys.path.insert(0, str(_RUN_CODE_DIR))
 
-from yolo_keypoints.coco import image_id_from_key
 from yolo_keypoints.rendering import render_overlay
-from yolo_keypoints.s3 import S3Ref, join_key, output_bucket, parse_ref, read_bytes, read_json, require_ref, write_bytes, write_json
 
 
 def main(inputs: dict[str, Any]) -> dict[str, Any]:
-    image_ref = require_ref(inputs, "image", aliases=("preprocessed",))
-    prediction = _prediction_from_input(inputs, local_s3_root=inputs.get("_local_s3_root"))
-    local_s3_root = inputs.get("_local_s3_root")
-    local_output_root = inputs.get("_local_output_root")
-    prefix = str(inputs.get("output_prefix") or "data/outputs/overlays/")
-    image_bytes = read_bytes(image_ref, local_s3_root=local_s3_root)
-    overlay_bytes, summary = render_overlay(image_bytes, prediction)
-    image_id = image_id_from_key(image_ref.key)
-    bucket = output_bucket(inputs, image_ref)
-    overlay_ref = S3Ref(bucket=bucket, key=join_key(prefix, f"{image_id}-overlay.png"))
-    labels_ref = S3Ref(bucket=bucket, key=join_key(prefix, f"{image_id}-labels.json"))
-    write_bytes(overlay_ref, overlay_bytes, content_type="image/png", local_output_root=local_output_root)
-    write_json(labels_ref, {"summary": summary, "prediction": prediction}, local_output_root=local_output_root)
-    return {
-        "overlay": overlay_ref.as_dict(),
-        "labels": labels_ref.as_dict(),
-        "preview": overlay_ref.as_dict(),
-        "summary": summary,
-    }
+    image_path = inputs["image"]            # file port (processed image)
+    image_id = str(inputs["image_id"])      # json
+    prediction = _prediction_from_input(inputs)   # see below
+    overlay_bytes, summary = render_overlay(Path(image_path).read_bytes(), prediction)
+    overlay_path = str(Path(tempfile.gettempdir()) / f"{image_id}-overlay.png")
+    labels_path = str(Path(tempfile.gettempdir()) / f"{image_id}-labels.json")
+    Path(overlay_path).write_bytes(overlay_bytes)
+    Path(labels_path).write_text(json.dumps({"summary": summary, "prediction": prediction}))
+    return {"overlay": overlay_path, "labels": labels_path, "summary": summary}
 
 
-def _prediction_from_input(inputs: dict[str, Any], *, local_s3_root: str | None) -> dict[str, Any]:
-    value = inputs.get("predictions") or inputs.get("prediction")
-    ref = parse_ref(value)
-    if ref is not None:
-        return read_json(ref, local_s3_root=local_s3_root)
-    if isinstance(value, dict) and isinstance(value.get("prediction"), dict):
-        return value["prediction"]
+def _prediction_from_input(inputs: dict[str, Any]) -> dict[str, Any]:
+    # accept an inline "prediction" dict, OR a "predictions" file port (local path to prediction json)
+    value = inputs.get("prediction")
     if isinstance(value, dict) and value.get("keypoints"):
         return value
-    raise ValueError("inputs['predictions'] must be an S3 ref or an inline prediction object")
+    path = inputs.get("predictions")
+    if isinstance(path, str) and path:
+        return json.loads(Path(path).read_text())
+    raise ValueError("render needs inputs['prediction'] (inline) or inputs['predictions'] (file path)")

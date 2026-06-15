@@ -7,15 +7,6 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class S3Ref:
-    bucket: str
-    key: str
-
-    def as_dict(self) -> dict[str, str]:
-        return {"bucket": self.bucket, "key": self.key}
-
-
-@dataclass(frozen=True)
 class Prediction:
     image_id: str
     label: str

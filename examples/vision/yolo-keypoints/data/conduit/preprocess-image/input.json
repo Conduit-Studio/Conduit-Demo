@@ -1,8 +1,5 @@
 {
-  "image": {
-    "bucket": "try-conduit-app",
-    "key": "examples/vision/yolo-keypoints/data/prepared/images/person-walk-001.png"
-  },
-  "output_bucket": "try-conduit-app",
-  "output_prefix": "examples/vision/yolo-keypoints/data/processed/images/"
+  "image": "person-walk-001.png",
+  "image_name": "person-walk-001.png",
+  "target_size": 160
 }

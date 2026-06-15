@@ -1,12 +1,135 @@
 {
-  "image": {
-    "bucket": "try-conduit-app",
-    "key": "examples/vision/yolo-keypoints/data/processed/images/person-walk-001-processed.png"
-  },
-  "predictions": {
-    "bucket": "try-conduit-app",
-    "key": "examples/vision/yolo-keypoints/data/predictions/person-walk-001-keypoints.json"
-  },
-  "output_bucket": "try-conduit-app",
-  "output_prefix": "examples/vision/yolo-keypoints/data/outputs/overlays/"
+  "image": "person-walk-001-processed.png",
+  "image_id": "person-walk-001",
+  "prediction": {
+    "image_id": "person-walk-001",
+    "label": "person",
+    "model": {
+      "name": "yolo-keypoints-demo",
+      "version": "pose-demo-v1"
+    },
+    "confidence": 0.93,
+    "source_annotation_id": 101,
+    "keypoints": [
+      {
+        "name": "nose",
+        "x": 78.0,
+        "y": 42.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_eye",
+        "x": 73.0,
+        "y": 39.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_eye",
+        "x": 83.0,
+        "y": 39.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_ear",
+        "x": 68.0,
+        "y": 42.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_ear",
+        "x": 88.0,
+        "y": 42.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_shoulder",
+        "x": 62.0,
+        "y": 62.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_shoulder",
+        "x": 94.0,
+        "y": 62.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_elbow",
+        "x": 54.0,
+        "y": 83.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_elbow",
+        "x": 103.0,
+        "y": 78.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_wrist",
+        "x": 47.0,
+        "y": 103.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_wrist",
+        "x": 111.0,
+        "y": 95.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_hip",
+        "x": 68.0,
+        "y": 98.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_hip",
+        "x": 90.0,
+        "y": 98.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_knee",
+        "x": 57.0,
+        "y": 118.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_knee",
+        "x": 103.0,
+        "y": 117.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "left_ankle",
+        "x": 49.0,
+        "y": 133.0,
+        "visibility": 2,
+        "confidence": 0.93
+      },
+      {
+        "name": "right_ankle",
+        "x": 112.0,
+        "y": 132.0,
+        "visibility": 2,
+        "confidence": 0.93
+      }
+    ]
+  }
 }

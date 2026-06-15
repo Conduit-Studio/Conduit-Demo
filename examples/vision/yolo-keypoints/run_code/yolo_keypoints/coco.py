@@ -13,16 +13,19 @@ KEYPOINT_NAMES = [
 ]
 
 
-def image_id_from_key(key: str) -> str:
-    stem = PurePosixPath(key).stem
+def image_id_from_name(name: str) -> str:
+    stem = PurePosixPath(name).stem
     for suffix in ("-processed", "-overlay", "-keypoints"):
         if stem.endswith(suffix):
             stem = stem[: -len(suffix)]
     return stem
 
 
-def annotation_for_image(coco: dict[str, Any], image_key: str) -> dict[str, Any]:
-    image_id = image_id_from_key(image_key)
+def image_id_from_key(key: str) -> str:
+    return image_id_from_name(key)
+
+
+def annotation_for_image(coco: dict[str, Any], image_id: str) -> dict[str, Any]:
     image = next((item for item in coco.get("images", []) if PurePosixPath(str(item.get("file_name", ""))).stem == image_id), None)
     if image is None:
         raise ValueError(f"COCO annotations do not include image {image_id!r}")
