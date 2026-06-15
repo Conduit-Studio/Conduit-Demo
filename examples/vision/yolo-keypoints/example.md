@@ -75,7 +75,7 @@ Use these artifacts for different jobs:
 - **Inference input:** use image S3 refs from `S3 List` / `S3 Copy`.
 - **Training or evaluation labels:** use `data/raw/labels/*.txt` and `data/yolo-pose.yaml`.
 - **Ground truth record:** use `data/raw/annotations/person_keypoints_coco_sample.json` only as COCO ground truth, not as model output.
-- **Smoke-test fixtures:** use `data/conduit/.../input.json` only for Verify Code and local tests.
+- **Smoke-test fixtures:** use `data/conduit/.../input.json` only for the Run Code node's built-in Verify and local tests.
 
 The checked-in `run_keypoints.py` keeps inference deterministic so the repo can run without downloading a model during unit tests. A real YOLO version adds two **file ports** — `image` (the pixels) and `model` (the weights) — and reads them as local paths. There is still no S3 or boto3 in the code; Conduit hands the wrapper the local files:
 
@@ -114,16 +114,28 @@ Port shapes:
 
 `render_results` accepts the prediction either inline as the `prediction` JSON dict or as the `predictions` file port (a local path to a prediction JSON); supply one.
 
-## Verify Code
+## Verify a node
 
-Verify Code invokes each node against `data/conduit/<node>/input.json`. For a **file port**, the fixture value is a **relative path to a file beside the fixture** (same directory; `..` is not allowed) — Conduit stages it and hands the code a local path. JSON ports are inline. No S3 pre-seeding is required; the needed sample files are committed beside each fixture.
+Verify each Run Code node using its built-in **Verify** dropdown (collapsed by default — click to expand). Do not use the standalone **Verify Code** node for this example: it has no ports, so it cannot handle file-port code.
 
-Bind the workflow to `Conduit-Studio/Conduit-Demo`, then verify each entry with the matching fixture:
+**The #1 gotcha — set the port types.** A Run Code node's input and output ports each have a type. `s3-ref` = a file (Conduit downloads it and hands your code a local path; your code does `open(path)`). `json` = a plain inline value (string, number, dict). **If a file input is mistyped `json`, your code receives the path string instead of the file and fails with `[Errno 2] No such file or directory: '<name>'`.** This is the single most common mistake.
+
+Port types for each node:
+
+| Node | File-port inputs (`s3-ref`) | JSON inputs | File-port outputs (`s3-ref`) | JSON outputs |
+| --- | --- | --- | --- | --- |
+| `preprocess_image` | `image` | `image_name`, `target_size` | `preprocessed` | `image_id`, `metadata` |
+| `run_keypoints` | `annotations` | `image_id` | `predictions` | `prediction`, `image_id` |
+| `render_results` | `image`, `predictions` (optional) | `image_id`, `prediction` (optional) | `overlay`, `labels` | `summary` |
+
+**Steps.** Bind the workflow to `Conduit-Studio/Conduit-Demo`. On each Run Code node set the entry `.py` and the port types above. Then open the node's **Verify** dropdown — the fixture path is pre-filled — and click **Verify**. Conduit stages the sample files committed beside each fixture and runs the code in your AWS account. No S3 pre-seeding is needed.
+
+For a **file port**, the fixture value is a **relative path to a file beside the fixture** (same directory; `..` is not allowed) — Conduit stages it and hands the code a local path. JSON ports are inline.
 
 1. `preprocess_image`
    - Entry: `examples/vision/yolo-keypoints/run_code/preprocess_image.py`
    - Handler: `main`
-   - Fixture JSON: `examples/vision/yolo-keypoints/data/conduit/preprocess-image/input.json` (file port `image` → `person-walk-001.png` beside it)
+   - Fixture JSON: `examples/vision/yolo-keypoints/data/conduit/preprocess-image/input.json` (file port `image` → `person-walk-001.png` beside it; `image_name` is inline JSON)
    - Output port: `preprocessed`
 
 2. `run_keypoints`
@@ -164,8 +176,10 @@ This path uses the checked-in deterministic `run_keypoints.py` and is for verify
    - Iterate over `copy_to_prepared.results`.
    - Body node: `Run Code` using `preprocess_image.py`.
    - Runtime: Container / CPU.
-   - Input: `object` or `image` from the Map item.
-   - Output: `preprocessed`.
+   - Body input ports and types:
+     - `image` — `s3-ref` (file port; wire from the Map item's per-item copied object ref).
+     - `image_name` — `json` (wire the object's key/filename from the upstream S3 object so the id is derived correctly; this is the one input the file-port model adds vs. self-S3 code — the wrapper loses the original filename, so the name must travel separately as JSON).
+   - Output: `preprocessed` (`s3-ref`) and `image_id` (`json`).
 
 Do not use the COCO annotation JSON as a fake model in the production workflow. It is only ground truth and fixture data.
 
@@ -182,8 +196,10 @@ Use this shape for real YOLO weights:
 
 3. `Map[Run Code]: preprocess_images`
    - Items input: `copy_to_prepared.results`
-   - Body input port: `image`
-   - Output: `preprocessed`
+   - Body input ports:
+     - `image`: `s3-ref` (file port — wire from the per-item copied object ref)
+     - `image_name`: `json` — wire the object's key/filename from the upstream S3 object (the wrapper loses the original filename, so the id must travel separately as JSON)
+   - Outputs: `preprocessed` (`s3-ref`), `image_id` (`json`)
 
 4. `Config JSON: model_ref`
    - Output: `model`
@@ -200,18 +216,23 @@ Use this shape for real YOLO weights:
    - Runtime: Container / CPU, or GPU when the GPU runtime is available for Run.
    - Inputs:
      - `items`: wire from `preprocess_images.results`
-     - `model`: wire from `Config JSON.model`
+     - `model`: wire from `Config JSON.model` (shared input to every iteration)
    - Body input ports:
-     - `image`: `s3-ref` (file port — Conduit hands the code a local image path)
-     - `image_id`: `json` (thread from `preprocess_images`)
-     - `model`: `s3-ref` (file port — Conduit hands the code a local weights path)
-   - The code reads the local model and image paths, scores the image, returns the prediction JSON as a local path on its `predictions` file port (Conduit uploads it), and emits a compact `prediction`/`image_id` summary.
+     - `annotations`: `s3-ref` (file port — the COCO annotations file; Conduit hands the code a local path)
+     - `image_id`: `json` — wire from `preprocess_images.image_id` (the node does NOT re-derive the id from a path; it receives it from upstream)
+     - `model`: `s3-ref` (file port — Conduit hands the code a local path to the `.pt` weights; do not type this `json`)
+   - Output ports: `predictions` (`s3-ref`), `prediction` (`json`), `image_id` (`json`).
+   - The code reads the local model and annotations paths, derives the pose from the annotations (deterministic demo) or scores the image (real YOLO), returns the prediction JSON as a local path on its `predictions` file port (Conduit uploads it), and emits a compact `prediction`/`image_id` summary.
 
 6. `Map[Run Code]: render_results`
    - Runtime: Container / CPU.
-   - Input: `items` from `run_keypoints.results`
-   - Body input ports: `image` (`s3-ref`), `image_id` (`json`), and `prediction` (`json`) or `predictions` (`s3-ref`)
-   - Output ports: `overlay`, `labels` (both file ports)
+   - Items input: `run_keypoints.results`
+   - Body input ports:
+     - `image`: `s3-ref` (file port — wire from `preprocess_images.preprocessed`)
+     - `image_id`: `json` — wire from `preprocess_images.image_id` (threaded through `run_keypoints`; do NOT re-derive from a path)
+     - `prediction`: `json` — wire from `run_keypoints.prediction`
+     - `predictions`: `s3-ref` (optional; supply instead of `prediction` if you prefer the full predictions file)
+   - Output ports: `overlay` (`s3-ref`), `labels` (`s3-ref`) — both file ports
 
 ## Expected Outputs
 
@@ -244,7 +265,7 @@ With AWS CLI from this example directory:
 aws s3 sync data s3://your-demo-bucket/examples/vision/yolo-keypoints/data
 ```
 
-The `data/conduit/.../input.json` files stay in GitHub. They are only Verify Code fixtures.
+The `data/conduit/.../input.json` files stay in GitHub. They are only Verify fixtures for Run Code nodes and local tests.
 
 ## Local Smoke Test
 
