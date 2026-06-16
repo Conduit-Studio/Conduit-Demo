@@ -1,2 +1,6 @@
+# Runtime deps for infer_keypoints.py (real ONNX YOLO-pose inference). ~105 MB total —
+# fits a Lambda container image. No torch / no ultralytics at runtime.
+# (ultralytics is needed ONCE on a dev machine to export yolo11n-pose.onnx; not a runtime dep.)
+onnxruntime>=1.17
+numpy>=1.26
 Pillow>=10.0
-ultralytics>=8.3
