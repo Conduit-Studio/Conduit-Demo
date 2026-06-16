@@ -1,0 +1,4 @@
+{
+  "image": { "bucket": "try-conduit-app", "key": "examples/vision/YOLO-Inference/images/000000038829.jpg" },
+  "model": { "bucket": "try-conduit-app", "key": "examples/vision/YOLO-Inference/model/yolo11n-pose.onnx" }
+}

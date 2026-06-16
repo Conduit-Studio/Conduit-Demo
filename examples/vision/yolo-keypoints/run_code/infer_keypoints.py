@@ -4,12 +4,15 @@ Runs an ONNX-exported YOLO-pose model on the image PIXELS with `onnxruntime` (no
 no ultralytics at runtime — only onnxruntime + numpy + Pillow, ~105 MB, fits a Lambda
 container image). Returns the annotated overlay PNG and a predicted-labels file.
 
-The model `yolo11n-pose.onnx` is bundled next to this file (exported once via
-`from ultralytics import YOLO; YOLO('yolo11n-pose.pt').export(format='onnx', imgsz=640)`),
-or point `YOLO_POSE_ONNX` at another path.
+The model arrives as a FILE PORT (`model`, an s3-ref) — Conduit downloads it and hands the
+code a local path. (Conduit excludes model artifacts from code bundles, so the model lives
+in S3 and is wired in: for the Map it's a shared input; for Verify it's a fixture file.)
+Export it once on a dev machine:
+    from ultralytics import YOLO; YOLO('yolo11n-pose.pt').export(format='onnx', imgsz=640)
 
-Input port:
-    image: s3-ref — the image (Conduit downloads it; the code gets a local path)
+Input ports:
+    image: s3-ref — the image (a local path)
+    model: s3-ref — the yolo11n-pose.onnx weights (a local path)
 Output ports:
     overlay: s3-ref — annotated PNG with the detected pose (Conduit uploads it)
     labels:  s3-ref — predicted keypoints as a YOLO-pose .txt (saved back to S3)
@@ -18,7 +21,6 @@ Output ports:
 
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -27,7 +29,6 @@ import numpy as np
 import onnxruntime as ort
 from PIL import Image, ImageDraw
 
-ONNX_PATH = os.environ.get("YOLO_POSE_ONNX", str(Path(__file__).resolve().parent / "yolo11n-pose.onnx"))
 IMGSZ = 640
 CONF_THRES = 0.25
 IOU_THRES = 0.45
@@ -51,10 +52,10 @@ SKELETON = [
 _session: ort.InferenceSession | None = None
 
 
-def _sess() -> ort.InferenceSession:
+def _sess(model_path: str) -> ort.InferenceSession:
     global _session
     if _session is None:
-        _session = ort.InferenceSession(ONNX_PATH, providers=["CPUExecutionProvider"])
+        _session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
     return _session
 
 
@@ -96,7 +97,7 @@ def main(inputs: dict[str, Any]) -> dict[str, Any]:
     width, height = image.size
     blob, scale, pad_x, pad_y = _letterbox(image, IMGSZ)
 
-    session = _sess()
+    session = _sess(inputs["model"])
     out = session.run(None, {session.get_inputs()[0].name: blob})[0]   # [1, 56, 8400]
     pred = out[0].transpose(1, 0)                                       # [8400, 56]
 
