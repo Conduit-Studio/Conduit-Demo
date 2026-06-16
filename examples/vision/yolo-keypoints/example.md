@@ -33,6 +33,7 @@ examples/vision/yolo-keypoints/
   run_code/preprocess_image.py
   run_code/run_keypoints.py
   run_code/render_results.py
+  run_code/process_image.py
   run_code/yolo_keypoints/*.py
   run_code/requirements.txt
   tests/test_run_code.py
@@ -149,6 +150,15 @@ For a **file port**, the fixture value is a **relative path to a file beside the
    - Handler: `main`
    - Fixture JSON: `examples/vision/yolo-keypoints/data/conduit/render-results/input.json` (file port `image` → `person-walk-001-processed.png` beside it; `prediction` is an inline JSON dict)
    - Output ports: `overlay`, `labels`
+
+## Record-mode run (recommended)
+
+Run the whole per-image pipeline as **one `Map` with "record items" ON**, over `{image, label}` records — each raw image paired with its per-image YOLO-pose `.txt` label. The body, `run_code/process_image.py`, opens **both** files and runs preprocess → keypoints → render in one iteration (no `Map` boundary between the steps, so each image's pose flows through local variables).
+
+- **Producer:** a `Config · JSON` (or a small pairing Run Code) emitting `[{ "image": {bucket,key}, "label": {bucket,key} }, ...]`.
+- **`Map`:** turn ON **"record items (multiple files per item)"**; body input ports `image` + `label` (both `s3-ref`, matching the record keys); output `overlay` (`s3-ref`) + `summary` (`json`).
+
+This is the buildable shape on today's engine: a `Map` carries one per-item input and keeps one output, so the multi-`Map` chain below can't thread per-image data (`image_id`, `prediction`) across stages. `process_image.py` composes the existing `preprocess`/`inference`/`rendering` helpers, and `keypoints_from_label` reads the per-image label directly (no shared-COCO-by-id lookup). The three modules below stay independently verifiable via their fixtures.
 
 ## Build in Conduit
 

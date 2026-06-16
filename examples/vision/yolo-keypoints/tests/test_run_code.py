@@ -36,8 +36,11 @@ def load_module(path: Path, name: str):
 preprocess_image = load_module(EXAMPLE_DIR / "run_code" / "preprocess_image.py", "demo_preprocess_image")
 run_keypoints = load_module(EXAMPLE_DIR / "run_code" / "run_keypoints.py", "demo_run_keypoints")
 render_results = load_module(EXAMPLE_DIR / "run_code" / "render_results.py", "demo_render_results")
+process_image = load_module(EXAMPLE_DIR / "run_code" / "process_image.py", "demo_process_image")
 
 ANNOTATIONS_PATH = EXAMPLE_DIR / "data/raw/annotations/person_keypoints_demo.json"
+RECORD_IMAGE = EXAMPLE_DIR / "data/raw/images/000000009772.jpg"
+RECORD_LABEL = EXAMPLE_DIR / "data/raw/labels/000000009772.txt"
 
 
 def _write_png(path: Path, size: tuple[int, int] = (200, 150)) -> Path:
@@ -135,6 +138,21 @@ class RenderResultsTest(unittest.TestCase):
             image = _write_png(Path(tmp) / "person-walk-001-processed.png", (160, 160))
             with self.assertRaises(ValueError):
                 render_results.main({"image": str(image), "image_id": "person-walk-001"})
+
+
+class ProcessImageTest(unittest.TestCase):
+    def test_record_pipeline_opens_both_files_and_renders(self) -> None:
+        # The record-of-refs run entry: receives TWO local file paths (image + its label)
+        # and runs preprocess -> keypoints -> render in one body.
+        result = process_image.main({"image": str(RECORD_IMAGE), "label": str(RECORD_LABEL)})
+
+        overlay = Path(result["overlay"])
+        self.assertTrue(overlay.exists())
+        with Image.open(overlay) as image_out:
+            self.assertEqual(image_out.format, "PNG")
+            self.assertEqual(image_out.size, (160, 160))
+        self.assertEqual(result["summary"]["label"], "person")
+        self.assertGreaterEqual(result["summary"]["keypoint_count"], 1)
 
 
 if __name__ == "__main__":
