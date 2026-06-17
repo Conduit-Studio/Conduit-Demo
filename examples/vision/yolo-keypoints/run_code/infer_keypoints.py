@@ -94,6 +94,7 @@ def _nms(boxes: np.ndarray, scores: np.ndarray, iou_thres: float) -> list[int]:
 
 def main(inputs: dict[str, Any]) -> dict[str, Any]:
     image = Image.open(inputs["image"]).convert("RGB")
+    stem = Path(inputs["image"]).stem  # name outputs after the source image (e.g. "000000425226")
     width, height = image.size
     blob, scale, pad_x, pad_y = _letterbox(image, IMGSZ)
 
@@ -128,10 +129,10 @@ def main(inputs: dict[str, Any]) -> dict[str, Any]:
                 draw.ellipse([px - 3, py - 3, px + 3, py + 3], fill=(255, 86, 47), outline=(255, 255, 255))
             persons.append({"confidence": float(c), "keypoints": kp.astype(float).tolist()})
 
-    overlay_path = str(Path(tempfile.gettempdir()) / "overlay.png")
+    overlay_path = str(Path(tempfile.gettempdir()) / f"{stem}-overlay.png")
     image.save(overlay_path)
 
-    labels_path = str(Path(tempfile.gettempdir()) / "labels.txt")
+    labels_path = str(Path(tempfile.gettempdir()) / f"{stem}-labels.txt")
     Path(labels_path).write_text(_yolo_pose_label(persons, width, height))
 
     return {
