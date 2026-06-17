@@ -83,7 +83,7 @@ def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str
     workers = _coerce(hyperparameters.get("workers", 8), int, 8)  # dataloader workers (lower on small-RAM hosts)
     device = hyperparameters.get("device")  # None → ultralytics auto-selects GPU if present
 
-    dataset_dir = Path(channels["dataset"]).resolve()
+    dataset_dir = Path(channels.get("dataset") or next(iter(channels.values()))).resolve()
     data_yaml = find_data_yaml(dataset_dir)
 
     # Deterministic output location; one sub-dir per trial so a looped sweep doesn't clobber.

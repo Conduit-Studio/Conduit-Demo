@@ -1,14 +1,11 @@
 {
-  "_comment": "The Config·JSON node's value. `trials` is the sweep grid the Map fans out over (one SageMaker training job per entry); each trial's keys become that job's hyperparameters. `dataset` is the shared input every trial trains on. Swap `dataset.bucket` for your bucket; pin the training image by @sha256 digest in the Train Model node (see scripts/build_and_push.sh).",
+  "_comment": "The Config·JSON 'sweep' value. trials = the swept grid (ONLY the dimensions that vary, string-valued); the constant base (epochs/batch/workers) lives in the Train Model node config and is merged in per trial (trial wins per key). dataset = the shared training channel.",
   "metric": "mAP50-95",
-  "dataset": {
-    "bucket": "conduit-demo-data",
-    "key": "examples/mlops/yolo-finetune/data/dataset/"
-  },
+  "dataset": { "bucket": "try-conduit-app", "key": "examples/mlops/yolo-finetune/data/dataset/" },
   "trials": [
-    { "name": "n-640",  "weights": "yolov8n.pt", "imgsz": 640,  "lr0": 0.01,  "epochs": 50 },
-    { "name": "s-640",  "weights": "yolov8s.pt", "imgsz": 640,  "lr0": 0.01,  "epochs": 50 },
-    { "name": "s-1280", "weights": "yolov8s.pt", "imgsz": 1280, "lr0": 0.005, "epochs": 80 },
-    { "name": "m-640",  "weights": "yolov8m.pt", "imgsz": 640,  "lr0": 0.01,  "epochs": 50 }
+    { "name": "n-640",  "weights": "yolov8n.pt", "imgsz": "640" },
+    { "name": "s-640",  "weights": "yolov8s.pt", "imgsz": "640" },
+    { "name": "s-1280", "weights": "yolov8s.pt", "imgsz": "1280", "lr0": "0.005" },
+    { "name": "m-640",  "weights": "yolov8m.pt", "imgsz": "640" }
   ]
 }
