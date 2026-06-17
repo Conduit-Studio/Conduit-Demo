@@ -1,0 +1,5 @@
+# Build-from-code training deps. Conduit installs these into the GPU training image it
+# builds for you (curated AWS PyTorch GPU Deep Learning Container base + these + your
+# train() + Conduit's wrapper), then digest-pins it. No Dockerfile, no build_and_push.
+# torch/torchvision come from the GPU DLC base; ultralytics pulls opencv, numpy, pandas…
+ultralytics>=8.2,<9

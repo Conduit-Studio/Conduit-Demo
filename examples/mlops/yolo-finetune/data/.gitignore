@@ -1,0 +1,4 @@
+# Downloaded COCO annotation subset (data/raw/) is a build artifact written by
+# scripts/download_coco_subset.py — don't commit it. The dataset/ subtree keeps
+# its own .gitignore (committed data.yaml; ignored images/ + labels/).
+raw/

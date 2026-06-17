@@ -1,10 +1,16 @@
-# YOLO dataset config. Paths are relative to THIS file = the `dataset` channel root
-# (SageMaker mounts the channel at /opt/ml/input/data/dataset inside the training container).
+# YOLO detection dataset config. Paths are relative to THIS file = the `dataset`
+# channel root (SageMaker mounts the channel at /opt/ml/input/data/dataset inside
+# the training container).
 #
-# This static copy lets you read the shape without running the generator. Running
-# scripts/make_demo_dataset.py overwrites it and fills images/ + labels/.
-path: .
+# This static copy lets you read the shape without downloading. Running
+# scripts/download_coco_subset.py + scripts/convert_coco_to_yolo_bbox.py overwrites
+# it and fills images/ + labels/.
+#
+# path: '' means 'the directory holding THIS yaml' (ultralytics resolves an empty
+# relative path to the yaml's parent). Do NOT use '.', which ultralytics resolves
+# against the process CWD, not the yaml location.
+path: ''
 train: images/train
 val: images/val
 nc: 2
-names: [circle, rectangle]
+names: [person, car]
