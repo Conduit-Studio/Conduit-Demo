@@ -9,6 +9,15 @@ This example uses Conduit's **build-from-code** Train Model node: you author a
 `train(hyperparameters, channels)` function and a `requirements.txt`, and Conduit builds +
 digest-pins the GPU training image for you — **no Dockerfile, no `/opt/ml` plumbing**.
 
+## Where the data lives (two S3 locations, by purpose)
+
+- **Canonical demo dataset:** `s3://try-conduit-app/examples/vision/YOLO-Finetuning/data/dataset/` (the YOLO family, beside the YOLO-Inference example).
+- **Training channel:** the `Config·JSON` `dataset` / `sweep.json` points at a **`conduit-*`** bucket (e.g. `s3://conduit-staging-<account>/mlops/yolo-finetune/data/dataset/`) — the SageMaker execution role (`conduit-sagemaker-exec-*`) only reads `arn:aws:s3:::conduit-*`, so training **cannot** read `try-conduit-app`. Sync the dataset into a `conduit-*` bucket before deploying a sweep:
+  ```bash
+  aws s3 sync data/dataset/ s3://conduit-staging-<account>/mlops/yolo-finetune/data/dataset/
+  ```
+The example **code** stays under `examples/mlops/yolo-finetune/` (it's an MLOps sweep+lineage example, doc §8); the scripts generate the dataset locally and are path-agnostic.
+
 ## Run it locally first (real training, no faking)
 
 The same `train()` that Conduit runs in your account also runs locally on your GPU:
