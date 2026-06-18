@@ -1,0 +1,8 @@
+{
+  "_comment": "The Config·JSON values for the promotion gate. `baseline` = the current-prod metric the candidate must beat (wire it into eval_vs_baseline.baseline). `metric`/`minDelta` tune the comparison. `timeoutSeconds`/`notifyChannel` configure the Wait for Approval node (timeoutSeconds = how long the pipeline durably waits for a human; notifyChannel = a Secrets Manager secret name holding the Slack webhook).",
+  "metric": "accuracy",
+  "baseline": { "accuracy": 0.93 },
+  "minDelta": 0.0,
+  "timeoutSeconds": 604800,
+  "notifyChannel": "conduit/slack-approvals"
+}
