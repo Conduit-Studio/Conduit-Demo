@@ -1,7 +1,7 @@
 {
-  "_comment": "The Config·JSON 'sweep' value. trials = the swept grid (ONLY the dimensions that vary, string-valued); the constant base (epochs/batch/workers) lives in the Train Model node config and is merged in per trial (trial wins per key). dataset = the shared training channel. NOTE: the dataset MUST live in a conduit-* bucket — the SageMaker execution role (conduit-sagemaker-exec-*) only reads arn:aws:s3:::conduit-*; e.g. s3://conduit-staging-<account>/...",
+  "_comment": "The Config·JSON 'sweep' value. trials = the swept grid (ONLY the dimensions that vary, string-valued); the constant base (epochs/batch/workers) lives in the Train Model node config and is merged in per trial (trial wins per key). dataset = the shared training channel. The connect-stack SageMaker exec role (conduit-sagemaker-exec-*) is widened to read s3://try-conduit-app/examples/*, so it reads this directly; a dataset elsewhere must live under a conduit-* bucket (or widen the exec role to it + redeploy the connect stack).",
   "metric": "mAP50-95",
-  "dataset": { "bucket": "conduit-staging-<account>", "key": "mlops/yolo-finetune/data/dataset/" },
+  "dataset": { "bucket": "try-conduit-app", "key": "examples/vision/YOLO-Finetuning/data/dataset/" },
   "trials": [
     { "name": "n-640",  "weights": "yolov8n.pt", "imgsz": "640" },
     { "name": "s-640",  "weights": "yolov8s.pt", "imgsz": "640" },

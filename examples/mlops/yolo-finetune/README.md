@@ -11,11 +11,13 @@ digest-pins the GPU training image for you — **no Dockerfile, no `/opt/ml` plu
 
 ## Where the data lives (two S3 locations, by purpose)
 
-- **Canonical demo dataset:** `s3://try-conduit-app/examples/vision/YOLO-Finetuning/data/dataset/` (the YOLO family, beside the YOLO-Inference example).
-- **Training channel:** the `Config·JSON` `dataset` / `sweep.json` points at a **`conduit-*`** bucket (e.g. `s3://conduit-staging-<account>/mlops/yolo-finetune/data/dataset/`) — the SageMaker execution role (`conduit-sagemaker-exec-*`) only reads `arn:aws:s3:::conduit-*`, so training **cannot** read `try-conduit-app`. Sync the dataset into a `conduit-*` bucket before deploying a sweep:
+- **Dataset (training channel):** `s3://try-conduit-app/examples/vision/YOLO-Finetuning/data/dataset/`. The connect-stack SageMaker execution role (`conduit-sagemaker-exec-*`) is **widened to read `arn:aws:s3:::try-conduit-app/examples/*`**, so a Train Model reads it directly. Upload the generated dataset there:
   ```bash
-  aws s3 sync data/dataset/ s3://conduit-staging-<account>/mlops/yolo-finetune/data/dataset/
+  aws s3 sync data/dataset/ s3://try-conduit-app/examples/vision/YOLO-Finetuning/data/dataset/
   ```
+  (A dataset *outside* `try-conduit-app/examples/*` must live in a `conduit-*` bucket — or widen the exec role to its bucket + redeploy the connect stack. By default the role only reads `arn:aws:s3:::conduit-*`.)
+- **Base weights:** `s3://try-conduit-app/examples/vision/YOLO-Finetuning/models/` (`yolov8{n,s,m}.pt`) — reference only; the trials name the weights (`"yolov8n.pt"`) and ultralytics auto-downloads them in the training container.
+
 The example **code** stays under `examples/mlops/yolo-finetune/` (it's an MLOps sweep+lineage example, doc §8); the scripts generate the dataset locally and are path-agnostic.
 
 ## Run it locally first (real training, no faking)
