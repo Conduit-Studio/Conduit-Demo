@@ -132,7 +132,10 @@ Wire up: `Config · JSON (sweep)` → `Map` → `Train Model · GPU` →
   `epochs`); declared metric `mAP50-95`. Pick a GPU tier (e.g. `ml.g5.xlarge`). On
   deploy Conduit builds the image (CodeBuild → ECR, content-addressed) and pins it by
   `@sha256:` digest — the same digest the lineage record records.
-- **Run Code (select_best)** — wire the Map's output into its `results` input.
+- **Run Code (select_best)** — the Map exposes its per-trial outputs as separate,
+  index-aligned lists, so wire three inputs: `trials` ← `Config·JSON.trials` (names +
+  hyperparameters), `metrics` ← `Map.metrics`, and `models` ← `Map.model`. `select_best`
+  zips them by index and returns `best` (winner + its model + hyperparameters).
 - **Choice (eval_gate)** — route on `best.value >= <baseline>`: pass → Notify (promote),
   default → Notify (hold).
 
