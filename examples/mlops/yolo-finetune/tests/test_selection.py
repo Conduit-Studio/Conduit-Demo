@@ -76,42 +76,18 @@ class TestSelection(unittest.TestCase):
 
 
 class TestSelectBestMain(unittest.TestCase):
-    """The Run Code entry (`main`) zips the Map's separate, index-aligned per-trial lists."""
+    """The Run Code entry (`main`) reads the single self-describing Map.results array."""
 
-    def test_zips_three_index_aligned_lists_and_threads_model_and_hp(self):
-        out = select_best_main({
-            "trials": [
-                {"name": "n-640", "weights": "yolov8n.pt", "imgsz": "640"},
-                {"name": "s-640", "weights": "yolov8s.pt", "imgsz": "640"},
-            ],
-            "metrics": [{"mAP50-95": 0.31, "mAP50": 0.55}, {"mAP50-95": 0.50, "mAP50": 0.78}],
-            "models": [
-                {"bucket": "b", "key": "n/model.tar.gz"},
-                {"bucket": "b", "key": "s/model.tar.gz"},
-            ],
-        })
-        self.assertEqual(out["best"]["name"], "s-640")          # real name, not the "trial" default
-        self.assertAlmostEqual(out["best"]["value"], 0.50)
-        self.assertEqual(out["best"]["model"]["key"], "s/model.tar.gz")        # winner's model threads through
-        self.assertEqual(out["best"]["hyperparameters"]["weights"], "yolov8s.pt")  # winner's HP threads through
-
-    def test_tolerates_missing_models_at_verify_time(self):
-        # codeCheck omits model-artifact ports, so `models` is absent — ranking still works.
-        out = select_best_main({
-            "trials": [{"name": "n-640", "weights": "yolov8n.pt"}, {"name": "s-640", "weights": "yolov8s.pt"}],
-            "metrics": [{"mAP50-95": 0.31}, {"mAP50-95": 0.50}],
-        })
-        self.assertEqual(out["best"]["name"], "s-640")
-        self.assertEqual(out["best"]["model"], {})
-
-    def test_combined_results_still_supported(self):
+    def test_main_reads_self_describing_results_array(self):
         out = select_best_main({"results": [
-            {"name": "x", "model": {"key": "x.tar.gz"}, "metrics": {"mAP50-95": 0.6}, "hyperparameters": {"weights": "yolov8n.pt"}},
+            {"item": {"name": "n-640", "weights": "yolov8n.pt"}, "index": 0, "model": {"key": "n.tar.gz"}, "metrics": {"mAP50-95": 0.31}},
+            {"item": {"name": "s-640", "weights": "yolov8s.pt"}, "index": 1, "model": {"key": "s.tar.gz"}, "metrics": {"mAP50-95": 0.50}},
         ]})
-        self.assertEqual(out["best"]["name"], "x")
-        self.assertEqual(out["best"]["model"]["key"], "x.tar.gz")
+        self.assertEqual(out["best"]["name"], "s-640")
+        self.assertEqual(out["best"]["model"]["key"], "s.tar.gz")
+        self.assertEqual(out["best"]["hyperparameters"]["weights"], "yolov8s.pt")
 
-    def test_raises_when_no_usable_input(self):
+    def test_main_raises_without_results(self):
         with self.assertRaises(ValueError):
             select_best_main({"metric": "mAP50-95"})
 
