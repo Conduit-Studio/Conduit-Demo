@@ -1,0 +1,7 @@
+# Tiny smoke dataset (real COCO person+car pairs) for the Train Model Verify dry-run.
+# Mounts as the `dataset` channel at /opt/ml/input/data/dataset, same shape as the full run.
+path: ''
+train: images/train
+val: images/val
+nc: 2
+names: [person, car]
