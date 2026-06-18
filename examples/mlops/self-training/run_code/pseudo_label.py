@@ -10,11 +10,15 @@ body:
 It loads the model `train` just produced, runs REAL forward passes over every example in
 the current unlabeled pool, and for each emits the argmax class + the softmax max-prob as
 `confidence`. NO label replay, NO canned scores — the confidence is a genuine softmax over
-the model's logits. The heavy data (model dir, pool images) travels as files/dirs (s3-ref);
-the small per-example preds list returns as json.
+the model's logits. The pool images travel as a directory (s3-ref); the small per-example
+preds list returns as json.
 
 Input ports
-    model : model-artifact / s3-ref — the dir `train` returned (holds model.pt + classes.json).
+    model : json — the model-artifact LOCATION (the REF, not a staged file). `train.model`
+            is a model-artifact output; a code Deploy port can only be json/s3-ref, so the
+            handoff arrives as json: a location string ("s3://…/model.tar.gz" or a local
+            dir) or an s3-ref-shaped {bucket,key} / {path}. This step LOADS the model from
+            that location (downloading/extracting if it's an s3 ref).
     pool  : s3-ref (dir) — the unlabeled pool split dir (holds index.csv + images).
     batch : (optional) inference batch size; defaults to 128. May be a string.
 
@@ -37,7 +41,10 @@ for _p in (str(_RUN_CODE_DIR), str(_TRAIN_DIR)):
 
 
 def _resolve_dir(value: Any) -> Path:
-    """Accept a plain path string or an s3-ref-shaped {path|dir|local}: locate the local dir."""
+    """Accept a plain path string or an s3-ref-shaped {path|dir|local}: locate the local dir.
+
+    Used for the `pool` dir (always staged locally as an s3-ref directory).
+    """
     if isinstance(value, str):
         return Path(value).resolve()
     if isinstance(value, dict):
@@ -47,8 +54,54 @@ def _resolve_dir(value: Any) -> Path:
     raise ValueError(f"cannot resolve a local directory from {value!r}")
 
 
+def _resolve_model_dir(ref: Any) -> Path:
+    """Resolve the model-artifact REF (`inputs["model"]`, json) to a local model directory.
+
+    `train.model` is a model-artifact output, but it crosses into this code node as JSON —
+    the model's LOCATION, never a pre-staged file. The location can be:
+      * a local dir/path string (the local driver passes "runs/.../model"),
+      * an s3-ref-shaped dict {path|dir|local} (already staged locally), or
+      * an s3 location: a "s3://bucket/key" string or {bucket, key} → download + extract here.
+    The result is a directory holding `model.pt` + `classes.json`.
+    """
+    # Already a local dir/path (string or {path|dir|local|localPath}).
+    if isinstance(ref, str) and not ref.startswith("s3://"):
+        return Path(ref).resolve()
+    if isinstance(ref, dict):
+        for key in ("path", "dir", "local", "localPath"):
+            if ref.get(key):
+                return Path(str(ref[key])).resolve()
+
+    # An s3 location (string "s3://bucket/key" or {bucket, key}) → fetch the artifact, extract it.
+    bucket = key = None
+    if isinstance(ref, str) and ref.startswith("s3://"):
+        without = ref[len("s3://"):]
+        bucket, _, key = without.partition("/")
+    elif isinstance(ref, dict) and ref.get("bucket") and ref.get("key"):
+        bucket, key = str(ref["bucket"]), str(ref["key"])
+    if not (bucket and key):
+        raise ValueError(f"cannot resolve a model location from {ref!r}")
+
+    import tarfile
+    import tempfile
+
+    import boto3
+
+    work = Path(tempfile.mkdtemp(prefix="conduit-model-"))
+    local_artifact = work / Path(key).name
+    boto3.client("s3").download_file(bucket, key, str(local_artifact))
+    if local_artifact.suffixes[-2:] == [".tar", ".gz"] or local_artifact.suffix == ".tgz":
+        out_dir = work / "model"
+        out_dir.mkdir(exist_ok=True)
+        with tarfile.open(local_artifact) as archive:
+            archive.extractall(out_dir)
+        return out_dir.resolve()
+    return work.resolve()
+
+
 def main(inputs: dict[str, Any]) -> dict[str, Any]:
-    model_dir = _resolve_dir(inputs.get("model"))
+    # `model` is the model-artifact REF (json) — a location, not a staged file. Load from it.
+    model_dir = _resolve_model_dir(inputs.get("model"))
     pool_dir = _resolve_dir(inputs.get("pool"))
     infer_batch = int(inputs.get("batch") or 128)
 

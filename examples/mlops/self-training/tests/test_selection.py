@@ -135,32 +135,34 @@ class TestSelectConfidentMain(unittest.TestCase):
 
 
 class TestMergeMain(unittest.TestCase):
-    """The Run Code entry / round summary: carries model + metrics forward as the loop sink."""
+    """The Run Code entry / round summary.
 
-    def test_round_summary_updates_and_passes_through(self):
+    Canvas rule: a code.run's port names must be unique across inputs+outputs, so the updated
+    dataset leaves under DIFFERENT names (`trainingDataNext`/`poolNext`) than it arrived
+    (`trainingData`/`pool`); `metrics` is re-emitted (its stop-only loop var reads metrics.accuracy).
+    """
+
+    def test_round_summary_updates_and_reemits_metrics(self):
         out = merge_main({
-            "labeled": [{"id": "L0", "label": 2, "path": "labeled/L0.png"}],
+            "trainingData": [{"id": "L0", "label": 2, "path": "labeled/L0.png"}],
             "pool": [{"id": "p0", "path": "pool/p0.png"}, {"id": "p1", "path": "pool/p1.png"}],
             "batch": [{"id": "p0", "label": 3, "confidence": 0.99}],
-            "model": {"bucket": "b", "key": "round1/model.tar.gz"},
-            "metrics": {"accuracy": 0.62},
+            "metricsIn": {"accuracy": 0.62},
         })
-        self.assertEqual([r["id"] for r in out["labeled"]], ["L0", "p0"])   # grew
-        self.assertEqual([r["id"] for r in out["pool"]], ["p1"])           # shrank
-        self.assertEqual(out["model"]["key"], "round1/model.tar.gz")       # passthrough (loop carries it forward)
-        self.assertEqual(out["metrics"]["accuracy"], 0.62)                 # passthrough (the stop signal reads this)
+        self.assertEqual([r["id"] for r in out["trainingDataNext"]], ["L0", "p0"])  # grew
+        self.assertEqual([r["id"] for r in out["poolNext"]], ["p1"])               # shrank
+        self.assertEqual(out["metrics"]["accuracy"], 0.62)                         # re-emitted (the stop signal reads this)
         self.assertEqual(out["new_confident"], 1)
 
     def test_empty_batch_plateau(self):
         out = merge_main({
-            "labeled": [{"id": "L0", "label": 2, "path": "labeled/L0.png"}],
+            "trainingData": [{"id": "L0", "label": 2, "path": "labeled/L0.png"}],
             "pool": [{"id": "p0", "path": "pool/p0.png"}],
             "batch": [],
-            "model": {"key": "m"},
-            "metrics": {"accuracy": 0.7},
+            "metricsIn": {"accuracy": 0.7},
         })
         self.assertEqual(out["new_confident"], 0)
-        self.assertEqual([r["id"] for r in out["pool"]], ["p0"])  # nothing consumed → plateau
+        self.assertEqual([r["id"] for r in out["poolNext"]], ["p0"])  # nothing consumed → plateau
 
 
 if __name__ == "__main__":

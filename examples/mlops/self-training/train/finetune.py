@@ -6,8 +6,9 @@ you author `train(hyperparameters, channels)` and a `requirements.txt`, and Cond
 Container base + your requirements + this code + Conduit's wrapper). There is **no
 Dockerfile and no `/opt/ml` plumbing** — Conduit's wrapper:
 
-  * hands `train()` the job's hyperparameters and the local channel paths (the `labeled`
-    and `test` channels mounted from S3);
+  * hands `train()` the job's hyperparameters and the local channel paths (the `train`
+    and `validation` channels mounted from S3 — these are the Train Model node's real
+    channel ports `trainingData`→channel `train` and `validationData`→channel `validation`);
   * copies the model directory you return into `/opt/ml/model` (→ `model.tar.gz`, which
     becomes the Train Model node's `model` output);
   * scrapes the `metrics` dict you return → the node's `metrics` output → lineage.
@@ -16,16 +17,16 @@ So nothing here talks to AWS or SageMaker. The exact same `train()` runs:
   * locally, called by `scripts/run_loop_local.py` (real GPU fine-tune, no faking);
   * in your account, inside the image Conduit builds for the Train Model node;
   * once PER ROUND of the self-training loop (the `flow.loop` re-feeds the grown labelled
-    set into the `labeled` channel each round).
+    set into the `train` channel each round).
 
 SageMaker delivers every hyperparameter as a STRING, so we coerce.
 
 ## On-disk data format (see ../../README.md)
 A "split" is a directory holding `index.csv` — a manifest with header `id,image_path,label`
 — plus the referenced image files (PNG). `image_path` is relative to the split dir.
-`label` is the integer CIFAR-10 class (0-9) for the labelled/test splits; it is empty for
-the unlabeled pool. This is the SIMPLEST real format: a CSV index + real PNGs, readable
-without torch. `train()` reads the `labeled` channel (training) and `test` channel (eval).
+`label` is the integer CIFAR-10 class (0-9) for the labelled/validation splits; it is empty
+for the unlabeled pool. This is the SIMPLEST real format: a CSV index + real PNGs, readable
+without torch. `train()` reads the `train` channel (training) and `validation` channel (eval).
 """
 from __future__ import annotations
 
@@ -108,9 +109,10 @@ def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str
     Args:
         hyperparameters: keys `epochs`, `batch`, `lr`, `arch` (default resnet18). Values
             may be strings (SageMaker hands every HP over as a string).
-        channels: maps channel name → local path. `channels["labeled"]` is the current
-            labelled split dir (the loop grows this each round); `channels["test"]` is a
-            held-out, fully-labelled split for evaluation.
+        channels: maps channel name → local path. `channels["train"]` is the current
+            labelled split dir (the loop grows this each round); `channels["validation"]` is a
+            held-out, fully-labelled split for evaluation. (These are the Train Model node's
+            `trainingData`→channel `train` and `validationData`→channel `validation` ports.)
 
     Returns:
         {"model": <model dir>, "metrics": {"accuracy": float}} — `model` is the directory
@@ -123,8 +125,8 @@ def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str
     arch = str(hyperparameters.get("arch", "resnet18"))
     device_hp = hyperparameters.get("device")  # None → auto
 
-    labeled_dir = Path(channels.get("labeled") or next(iter(channels.values()))).resolve()
-    test_dir = Path(channels["test"]).resolve()
+    labeled_dir = Path(channels.get("train") or next(iter(channels.values()))).resolve()
+    test_dir = Path(channels["validation"]).resolve()
 
     model_dir = Path(
         os.environ.get("CONDUIT_MODEL_DIR")
@@ -228,8 +230,8 @@ def _main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Fine-tune one round locally.")
-    parser.add_argument("--labeled", required=True, help="labelled split dir (holds index.csv)")
-    parser.add_argument("--test", required=True, help="held-out test split dir (holds index.csv)")
+    parser.add_argument("--labeled", required=True, help="labelled split dir → `train` channel (holds index.csv)")
+    parser.add_argument("--test", required=True, help="held-out test split dir → `validation` channel (holds index.csv)")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--lr", type=float, default=0.001)
@@ -239,7 +241,7 @@ def _main() -> int:
 
     out = train(
         {"epochs": args.epochs, "batch": args.batch, "lr": args.lr, "arch": args.arch, "device": args.device},
-        {"labeled": args.labeled, "test": args.test},
+        {"train": args.labeled, "validation": args.test},
     )
     print(out)
     return 0

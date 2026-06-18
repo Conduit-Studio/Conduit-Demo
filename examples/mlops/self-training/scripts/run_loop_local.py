@@ -8,7 +8,7 @@ Each round calls the EXACT SAME functions Conduit runs in your account:
   * train()                  from train/finetune.py        — real ResNet fine-tune, real eval
   * pseudo_label.main()      from run_code/pseudo_label.py  — real inference over the pool
   * select_confident.main()  from run_code/select_confident.py — pure confidence filter
-  * merge.main()             from run_code/merge.py            — pure grow/shrink + passthrough
+  * merge.main()             from run_code/merge.py            — pure grow/shrink + re-emit metrics
 
 …just on the local CPU/GPU instead of SageMaker + Lambda. The loop halts when held-out
 accuracy clears `--target`, OR no new confident pseudo-labels are found (plateau), OR
@@ -116,10 +116,11 @@ def main() -> int:
         model_dir = round_dir / "model"
 
         # ---- train (REAL) ----
+        # Channels match the Train Model node's ports: trainingData→`train`, validationData→`validation`.
         train_out = train(
             {"epochs": args.epochs, "batch": args.batch, "lr": args.lr, "arch": args.arch,
              "device": args.device, "model_dir": str(model_dir)},
-            {"labeled": str(labeled_dir), "test": str(test_dir)},
+            {"train": str(labeled_dir), "validation": str(test_dir)},
         )
         accuracy = float(train_out["metrics"]["accuracy"])
         last_metrics = train_out["metrics"]
@@ -141,12 +142,13 @@ def main() -> int:
             hits = sum(1 for b in batch if truth.get(b["id"]) == b["label"])
             pseudo_acc = hits / len(batch)
 
-        # ---- merge (pure round summary; carries model + metrics forward as the loop sink) ----
+        # ---- merge (pure round summary; updated vars leave under *Next names, metrics re-emitted) ----
+        # Mirrors the canvas loop vars: trainingData ← trainingDataNext, pool ← poolNext, metrics ← metrics.
         merged = merge.main({
-            "labeled": labeled, "pool": pool, "batch": batch,
-            "model": {"path": str(model_dir)}, "metrics": train_out["metrics"],
+            "trainingData": labeled, "pool": pool, "batch": batch,
+            "metricsIn": train_out["metrics"],
         })
-        labeled, pool = merged["labeled"], merged["pool"]
+        labeled, pool = merged["trainingDataNext"], merged["poolNext"]
         new_confident = merged["new_confident"]
 
         line = (

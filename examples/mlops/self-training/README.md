@@ -17,13 +17,22 @@ inference are genuine — no stubbed training, no replayed labels, no canned met
 
 - **Config·JSON** (`config/loop.json`) holds the s3-ref data locations + the loop knobs
   (`target_acc`, `conf_threshold`, `max_rounds`).
-- **flow.loop** re-feeds the body each round. Its `vars` are `labeled` (init from
-  `labeled_seed`, updated by `merge.labeled`), `pool` (init from `unlabeled_pool`, updated
-  by `merge.pool`), and `metrics` (updated by `merge.metrics`). It stops when
+- **flow.loop** re-feeds the body each round. Loop **vars** seed body nodes by name and
+  update from `merge`'s outputs:
+  - `trainingData` — init from `labeled_seed`, seeds **train**'s `trainingData` channel port
+    (SageMaker channel `train`), updated by `merge.trainingDataNext`;
+  - `pool` — init from `unlabeled_pool`, seeds **pseudo_label**'s `pool`, updated by
+    `merge.poolNext`;
+  - `metrics` — **stop-only** (no body input), updated by `merge.metrics`.
+
+  The held-out eval set is a **shared (non-var) input**: `validationData` (init from
+  `test_set`) wires into **train**'s `validationData` channel port (SageMaker channel
+  `validation`) and stays constant across rounds. The loop stops when
   `$.loopState.metrics.accuracy >= target_acc` or `maxRounds` is reached.
-- The body is the four steps below; **`merge` is the body's sink** and carries the round's
-  `model` + `metrics` forward so the loop can both halt on accuracy and hand the latest
-  artifact to the next round.
+- The body is the four steps below; **`merge` is the body's sink**. The model handoff
+  `train.model → pseudo_label.model` threads as **json** — the model-artifact ref
+  (location), not a staged file — because a code node's Deploy port is json/s3-ref, never
+  `model-artifact`.
 
 > **Follow-on (not in this example):** registering the FINAL model into the SageMaker Model
 > Registry *after* the loop ends is a separate slice — this example builds the loop itself.
@@ -37,15 +46,16 @@ locally and in your account.
 
 | step | file | input → output |
 |------|------|----------------|
-| **train** | `train/finetune.py` | `train(hyperparameters, channels)` → `{"model": <dir>, "metrics": {"accuracy": float}}`. Channels: `labeled` (current labelled split), `test` (held-out eval). HPs: `epochs`, `batch`, `lr`, `arch` (default `resnet18`). |
-| **pseudo_label** | `run_code/pseudo_label.py` | `main({"model", "pool"})` → `{"preds": [{"id", "label", "confidence"}, …]}`. Loads the model, runs REAL inference over the pool, `confidence` = softmax max-prob. |
+| **train** | `train/finetune.py` | `train(hyperparameters, channels)` → `{"model": <dir>, "metrics": {"accuracy": float}}`. Channels: `train` (current labelled split, from the `trainingData` port), `validation` (held-out eval, from the `validationData` port). HPs: `epochs`, `batch`, `lr`, `arch` (default `resnet18`). |
+| **pseudo_label** | `run_code/pseudo_label.py` | `main({"model", "pool"})` → `{"preds": [{"id", "label", "confidence"}, …]}`. `model` is the model-artifact LOCATION passed as **json** (the ref) — the step loads the model from it. Runs REAL inference over the pool; `confidence` = softmax max-prob. |
 | **select_confident** | `run_code/select_confident.py` | `main({"preds", "threshold"})` → `{"batch": [preds with conf ≥ threshold], "new_confident": <count>}`. |
-| **merge** | `run_code/merge.py` | `main({"labeled", "pool", "batch", "model", "metrics"})` → `{"labeled": labeled+batch, "pool": pool−batch ids, "model": <passthrough>, "metrics": <passthrough>, "new_confident": <count>}`. |
+| **merge** | `run_code/merge.py` | `main({"trainingData", "pool", "batch", "metricsIn"})` → `{"trainingDataNext": trainingData+batch, "poolNext": pool−batch ids, "metrics": <re-emitted>, "new_confident": <count>}`. Inputs ≠ outputs (code.run port-name uniqueness): the updated set leaves under `…Next` names → the loop's `trainingData`/`pool` vars. |
 
 The pure, unit-tested logic lives in `run_code/self_training/`: `select_confident(preds,
 threshold)` and `merge_round(labeled, pool, batch) -> (labeled', pool')` (labelled grows,
 pool shrinks by exactly the batch's ids, no duplicates). No torch in that package, so the
-tests run with no GPU.
+tests run with no GPU. (`merge.py`'s wrapper renames these to the canvas ports
+`trainingData`/`pool` in → `trainingDataNext`/`poolNext` out; the pure function is positional.)
 
 ## On-disk data format
 
@@ -110,7 +120,7 @@ train/requirements.txt            # torch/torchvision/pillow/numpy — Conduit i
 config/loop.json                  # Config·JSON values + the documented flow.loop config (vars + stop)
 run_code/pseudo_label.py          # Run Code: REAL inference over the pool → {preds}
 run_code/select_confident.py      # Run Code: keep conf >= threshold → {batch, new_confident}
-run_code/merge.py                 # Run Code: round summary — grow labelled / shrink pool / passthrough model+metrics
+run_code/merge.py                 # Run Code: round summary — grow labelled / shrink pool (→ *Next ports) / re-emit metrics
 run_code/self_training/           # pure, unit-tested logic (selection.py, merge.py, schemas.py) — no torch
 run_code/requirements.txt
 scripts/prepare_cifar_subset.py   # real CIFAR-10 → labeled_seed / unlabeled_pool / test
