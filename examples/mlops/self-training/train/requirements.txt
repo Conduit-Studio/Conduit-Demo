@@ -1,0 +1,9 @@
+# Build-from-code training deps. Conduit installs these into the GPU training image it
+# builds for you (curated AWS PyTorch GPU Deep Learning Container base + these + your
+# train() + Conduit's wrapper), then digest-pins it. No Dockerfile, no build_and_push.
+# torch/torchvision come from the GPU DLC base; pinning them loosely keeps the build
+# reproducible while letting the base CUDA build win.
+torch>=2.2
+torchvision>=0.17
+pillow>=10
+numpy>=1.26

@@ -1,0 +1,8 @@
+# Run Code deps. pseudo_label.py runs REAL torchvision inference, so it needs torch +
+# torchvision + pillow. select_confident.py and merge.py are pure stdlib (the
+# self_training package has no third-party deps), but they share this one container.
+# Conduit builds the Run Code container from this file.
+torch>=2.2
+torchvision>=0.17
+pillow>=10
+numpy>=1.26

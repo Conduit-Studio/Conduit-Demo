@@ -1,0 +1,26 @@
+{
+  "_comment": "The Config·JSON value for the self-training loop. labeled_seed / unlabeled_pool / test_set are s3-ref values (typed s3-ref so they wire into the Train Model + pseudo_label dir inputs — a json value cannot wire into an s3-ref port). target_acc / conf_threshold / max_rounds are scalar loop knobs. On the canvas: Config·JSON → flow.loop[ train → pseudo_label → select_confident → merge ] → Notify. The connect-stack SageMaker exec role reads s3://try-conduit-app/examples/* directly; data elsewhere must live under a conduit-* bucket (or widen the exec role + redeploy the connect stack).",
+
+  "labeled_seed":   { "bucket": "try-conduit-app", "key": "examples/mlops/self-training/data/labeled_seed/" },
+  "unlabeled_pool": { "bucket": "try-conduit-app", "key": "examples/mlops/self-training/data/unlabeled_pool/" },
+  "test_set":       { "bucket": "try-conduit-app", "key": "examples/mlops/self-training/data/test/" },
+
+  "target_acc": "0.80",
+  "conf_threshold": "0.95",
+  "max_rounds": "5",
+
+  "_loop_config": {
+    "_comment": "How this wires into the flow.loop node on the canvas. The loop body is train → pseudo_label → select_confident → merge; merge is the body's sink and carries model + metrics forward. Each round the loop re-feeds the updated `labeled` + `pool` vars into the next iteration's train + pseudo_label. The loop halts when test accuracy clears target_acc OR maxRounds is hit. (NOTE: registering the FINAL model into the Model Registry after the loop ends is a FOLLOW-ON — not in this example.)",
+    "maxRounds": 5,
+    "vars": [
+      { "name": "labeled", "initFrom": "labeled_seed",   "updatedBy": "labeled" },
+      { "name": "pool",    "initFrom": "unlabeled_pool", "updatedBy": "pool" },
+      { "name": "metrics", "updatedBy": "metrics" }
+    ],
+    "stop": {
+      "path": "$.loopState.metrics.accuracy",
+      "op": "NumericGreaterThanEquals",
+      "value": "0.80"
+    }
+  }
+}
