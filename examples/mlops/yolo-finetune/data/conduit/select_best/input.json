@@ -1,0 +1,18 @@
+{
+  "_comment": "Verify fixture for the select_best Run Code node. This is the `inputs` dict passed to main(): the single self-describing `results` array the sweep Map emits (one {item, index, model, metrics} record per trial). Numbers are the REAL local GPU run (scripts/run_sweep_local.py, RTX 3060, 40 epochs) recorded in runs/sweep_summary.json — so verifying doubles as a correctness check: best must resolve to s-640.",
+  "metric": "mAP50-95",
+  "results": [
+    {
+      "index": 0,
+      "item": { "name": "n-640", "weights": "yolov8n.pt", "imgsz": "640" },
+      "model": { "bucket": "try-conduit-app", "key": "examples/vision/YOLO-Finetuning/models/n-640/model.tar.gz" },
+      "metrics": { "mAP50-95": 0.30560517422709743, "mAP50": 0.4852946022241228 }
+    },
+    {
+      "index": 1,
+      "item": { "name": "s-640", "weights": "yolov8s.pt", "imgsz": "640" },
+      "model": { "bucket": "try-conduit-app", "key": "examples/vision/YOLO-Finetuning/models/s-640/model.tar.gz" },
+      "metrics": { "mAP50-95": 0.49957716189896706, "mAP50": 0.6871182899667085 }
+    }
+  ]
+}
