@@ -1,0 +1,17 @@
+{
+  "_comment": "Verify fixture for the merge Run Code node (the loop body's sink) — the `inputs` dict passed to main(). trainingData/pool are manifest rows ({id,image_path,label}); batch is select_confident's two kept pseudo-labels (ids are a subset of pool). merge grows the labelled set by the batch and removes those ids from the pool, so verifying doubles as a correctness check: trainingDataNext has 4 rows (pool-0481 stamped label 3, pool-1207 stamped label 7), poolNext == [pool-3050], new_confident == 2, and metrics passes through {accuracy:0.399} (a REAL round-2 held-out accuracy from scripts/run_loop_local.py).",
+  "trainingData": [
+    { "id": "seed-0001", "label": 0, "image_path": "labeled_seed/images/seed-0001.png" },
+    { "id": "seed-0002", "label": 4, "image_path": "labeled_seed/images/seed-0002.png" }
+  ],
+  "pool": [
+    { "id": "pool-0481", "image_path": "unlabeled_pool/images/pool-0481.png" },
+    { "id": "pool-1207", "image_path": "unlabeled_pool/images/pool-1207.png" },
+    { "id": "pool-3050", "image_path": "unlabeled_pool/images/pool-3050.png" }
+  ],
+  "batch": [
+    { "id": "pool-0481", "label": 3, "confidence": 0.9913 },
+    { "id": "pool-1207", "label": 7, "confidence": 0.9627 }
+  ],
+  "metricsIn": { "accuracy": 0.399 }
+}

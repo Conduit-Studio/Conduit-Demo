@@ -102,6 +102,36 @@ Run the pure-logic tests (no torch, no GPU):
 python -m unittest tests/test_selection.py
 ```
 
+## Verify on the canvas (Run Code fixtures)
+
+Before a `code.run` node runs or deploys, Conduit **Verifies** it — builds the node's image
+and runs its entry against a small **fixture** (a repo JSON of the node's `inputs`). The two
+pure steps ship real fixtures under `data/conduit/<node>/input.json` (the same convention as
+the YOLO sweep), with values drawn from a real local round so verifying doubles as a
+**correctness check**:
+
+| node | `fixturePath` | what it asserts |
+|------|---------------|-----------------|
+| **select_confident** | `data/conduit/select_confident/input.json` | threshold `0.95` keeps exactly the two ≥-0.95 preds → `batch == [pool-0481, pool-1207]`, `new_confident == 2` |
+| **merge** | `data/conduit/merge/input.json` | the batch folds in (labelled → 4 rows, the two promoted carry their stamped labels) and the pool drops them → `poolNext == [pool-3050]`, `metrics == {accuracy: 0.399}` |
+
+Point each node's **Verify → fixture** at the path above (set `fixturePath` in the node's
+GitHub code source). Both fixtures run green locally too:
+
+```bash
+.venv/bin/python -c "import json,sys; sys.path.insert(0,'run_code'); import select_confident,merge; \
+  i=json.load(open('data/conduit/select_confident/input.json')); i.pop('_comment',None); print(select_confident.main(i)); \
+  j=json.load(open('data/conduit/merge/input.json')); j.pop('_comment',None); print(merge.main(j))"
+```
+
+- **train** (Train Model, build-from-code) needs **no fixture** — its Verify is the
+  build-from-code path (Python parse → the image builds → an import + 1-step dry-run), which
+  Conduit runs for you.
+- **pseudo_label** reads the pool **directory** and loads the model for real inference, so its
+  Verify is the **build + import** check — a run-fixture would need a committed model + pool
+  images (the same single-file-vs-directory boundary the deploy path still has). Its real
+  inference is what `run_loop_local.py` proves locally and the canvas run proves end-to-end.
+
 ## The honest ML caveat
 
 Self-training risks **confirmation bias**: a confident-but-wrong pseudo-label gets baked
@@ -123,6 +153,8 @@ run_code/select_confident.py      # Run Code: keep conf >= threshold → {batch,
 run_code/merge.py                 # Run Code: round summary — grow labelled / shrink pool (→ *Next ports) / re-emit metrics
 run_code/self_training/           # pure, unit-tested logic (selection.py, merge.py, schemas.py) — no torch
 run_code/requirements.txt
+data/conduit/select_confident/input.json   # Verify fixture (real values) for the select_confident node
+data/conduit/merge/input.json              # Verify fixture (real values) for the merge node
 scripts/prepare_cifar_subset.py   # real CIFAR-10 → labeled_seed / unlabeled_pool / test
 scripts/run_loop_local.py         # local end-to-end loop driver (real training + inference each round)
 tests/test_selection.py           # unit tests for the pure select/merge logic

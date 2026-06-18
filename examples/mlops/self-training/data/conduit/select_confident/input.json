@@ -1,0 +1,11 @@
+{
+  "_comment": "Verify fixture for the select_confident Run Code node — the `inputs` dict passed to main(). `preds` is a representative slice of pseudo_label's output (one {id,label,confidence} per pooled example) with a genuine softmax-confidence spread like a REAL round (RTX 3060, scripts/run_loop_local.py). With threshold 0.95 exactly two predictions clear the bar, so verifying doubles as a correctness check: batch == [pool-0481, pool-1207] (confidence-desc), new_confident == 2.",
+  "threshold": 0.95,
+  "preds": [
+    { "id": "pool-0481", "label": 3, "confidence": 0.9913 },
+    { "id": "pool-1207", "label": 7, "confidence": 0.9627 },
+    { "id": "pool-0033", "label": 1, "confidence": 0.8741 },
+    { "id": "pool-2999", "label": 5, "confidence": 0.4020 },
+    { "id": "pool-1750", "label": 9, "confidence": 0.6188 }
+  ]
+}
