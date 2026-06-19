@@ -16,7 +16,7 @@ from pathlib import Path
 # Allow `python -m unittest tests/test_finetune.py` from the example root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "train"))
 
-from finetune import _coerce, _run_name, find_data_yaml  # noqa: E402
+from finetune import _coerce, _resolve_weights, _run_name, find_data_yaml  # noqa: E402
 
 
 class TestCoerce(unittest.TestCase):
@@ -41,6 +41,22 @@ class TestRunName(unittest.TestCase):
 
     def test_derives_from_weights_and_imgsz_when_no_name(self):
         self.assertEqual(_run_name({"weights": "yolov8n.pt", "imgsz": 640}), "yolov8n-640")
+
+
+class TestResolveWeights(unittest.TestCase):
+    def test_bare_name_when_no_models_channel(self):
+        # No `models` channel wired → return the name so ultralytics downloads it (unchanged path).
+        self.assertEqual(_resolve_weights("yolov8n.pt", {"dataset": "/data"}), "yolov8n.pt")
+
+    def test_bare_name_when_file_absent_in_channel(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(_resolve_weights("yolov8n.pt", {"models": d}), "yolov8n.pt")
+
+    def test_uses_local_file_when_present_in_channel(self):
+        with tempfile.TemporaryDirectory() as d:
+            staged = Path(d) / "yolov8s.pt"
+            staged.write_bytes(b"weights")
+            self.assertEqual(_resolve_weights("yolov8s.pt", {"models": d}), str(staged))
 
 
 class TestFindDataYaml(unittest.TestCase):

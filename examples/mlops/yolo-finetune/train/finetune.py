@@ -37,6 +37,23 @@ def _coerce(value: Any, cast, default):
         return default
 
 
+def _resolve_weights(weights_name: str, channels: dict[str, Any]) -> str:
+    """Resolve the base checkpoint: prefer a file staged in the optional `models` channel.
+
+    A workflow can stage base weights in S3 and wire them into a `models` channel (mounted
+    locally as `channels["models"]`) to avoid a per-job ultralytics download and make the run
+    reproducible/air-gapped. `weights_name` is the FILE NAME (e.g. "yolov8s.pt"); if it isn't
+    present under the channel (or no channel is wired) we return the bare name so ultralytics
+    fetches it by name — so this is a no-op for the existing download-on-demand workflow.
+    """
+    models_dir = channels.get("models")
+    if models_dir:
+        candidate = os.path.join(models_dir, weights_name)
+        if os.path.exists(candidate):
+            return candidate
+    return weights_name
+
+
 def find_data_yaml(dataset_dir: Path) -> Path:
     """Locate the YOLO dataset config inside the mounted `dataset` channel."""
     for name in ("data.yaml", "dataset.yaml"):
@@ -75,7 +92,7 @@ def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str
         `model` is the directory Conduit copies into `/opt/ml/model` (it holds
         `best.pt`/`last.pt`); `metrics` carries the real validation mAP.
     """
-    weights = str(hyperparameters.get("weights", "yolov8n.pt"))
+    weights = _resolve_weights(str(hyperparameters.get("weights", "yolov8n.pt")), channels)
     imgsz = _coerce(hyperparameters.get("imgsz", 640), int, 640)
     lr0 = _coerce(hyperparameters.get("lr0", 0.01), float, 0.01)
     epochs = _coerce(hyperparameters.get("epochs", 50), int, 50)
