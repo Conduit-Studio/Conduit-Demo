@@ -1,0 +1,4 @@
+{
+  "metrics": { "accuracy": 0.96 },
+  "baseline": { "accuracy": 0.93 }
+}
