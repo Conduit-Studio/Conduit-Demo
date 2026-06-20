@@ -18,6 +18,8 @@ Output ports
 """
 from __future__ import annotations
 
+import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -32,7 +34,12 @@ from promotion_gate.evaluation import evaluate  # noqa: E402
 
 def main(inputs: dict[str, Any]) -> dict[str, Any]:
     metrics = inputs.get("metrics")
+    # Input-wins: a wired `baseline` takes precedence; otherwise fall back to the BASELINE
+    # env constant (the single-root deploy shape — the baseline is folded into this node).
     baseline = inputs.get("baseline")
+    if baseline is None:
+        raw = os.environ.get("BASELINE", "")
+        baseline = json.loads(raw) if raw else None
     if not isinstance(metrics, dict) or not isinstance(baseline, dict):
         raise ValueError("inputs['metrics'] and inputs['baseline'] must both be metric objects")
     return evaluate(
