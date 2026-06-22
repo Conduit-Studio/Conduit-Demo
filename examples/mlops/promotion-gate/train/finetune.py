@@ -11,13 +11,15 @@ no `/opt/ml` plumbing** — Conduit's wrapper:
     which becomes the Train Model node's `model` output);
   * scrapes the `metrics` dict you return → the node's `metrics` output → the eval gate → lineage.
 
-The candidate is a **real** model: a scikit-learn ``LogisticRegression`` on the built-in ``digits``
-dataset, scored on a 20% held-out split. The reported accuracy is a genuine held-out metric, not a
-hardcoded number — and ``digits`` is a built-in sklearn dataset, so this needs **no channel / no
-S3 input** (the Train Model node declares only a ``hyperparameters`` json port).
+The candidate is a **real** model: a scikit-learn ``LogisticRegression`` trained on the real
+``digits`` dataset, scored on a 20% held-out split. The reported accuracy is a genuine held-out
+metric, not a hardcoded number. The training data is a **real S3 input**: the Train Model node
+declares a ``dataset`` ``s3-ref`` channel, Conduit mounts that S3 prefix into the job, and this
+function reads ``digits.csv`` out of it (``channels['dataset']``). Produce that CSV with
+``export_digits.py`` and upload it to the bucket the node's ``dataset`` Config·JSON points at.
 
 The exact same ``train()`` runs:
-  * locally, called by ``_main`` (real fit + held-out score, no faking);
+  * locally, called by ``_main`` (it exports ``digits.csv`` next to this file, then trains from it);
   * in your account, inside the image Conduit builds for the Train Model node.
 
 SageMaker delivers every hyperparameter as a STRING, so we coerce.
@@ -27,6 +29,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any
+
+from export_digits import CSV_NAME
 
 
 def _coerce(value: Any, cast, default):
@@ -61,16 +65,32 @@ def _model_dir() -> Path:
     return model_dir
 
 
+def _load_digits_csv(path: Path):
+    """Load the digits CSV (64 pixel columns + a final ``label`` column) → ``(X, y)``.
+
+    Mirrors ``export_digits.export`` exactly: one header row, then float pixel features and an
+    integer label per row. Reads from the local path Conduit mounts the ``dataset`` channel into.
+    """
+    import numpy as np
+
+    data = np.loadtxt(path, delimiter=",", skiprows=1)
+    if data.ndim != 2 or data.shape[1] < 2:
+        raise ValueError(f"{path} does not look like the digits CSV (got shape {data.shape})")
+    X = data[:, :-1]
+    y = data[:, -1].astype(int)
+    return X, y
+
+
 def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str, Any]:
-    """Train a real LogisticRegression on sklearn ``digits``; report REAL held-out accuracy.
+    """Train a real LogisticRegression on the ``digits`` CSV from S3; report REAL held-out accuracy.
 
     Args:
         hyperparameters: optional keys ``seed`` (held-out split seed, default 0), ``max_iter``
             (solver iterations, default 5000), ``C`` (inverse regularisation, default 1.0). Values
             may be strings (SageMaker hands every HP over as a string).
-        channels: maps channel name → local path. Unused here — ``digits`` is a built-in sklearn
-            dataset, so the candidate needs no S3 channel (the Train Model node declares only the
-            fixed ``hyperparameters`` json port).
+        channels: maps channel name → local path. Requires a ``dataset`` channel containing
+            ``digits.csv`` (the Train Model node's ``dataset`` ``s3-ref`` input). No silent fallback:
+            if the channel or file is missing, training fails loudly rather than fabricating data.
 
     Returns:
         ``{"model": <model dir>, "metrics": {"accuracy": float}}`` — ``model`` is the directory
@@ -81,18 +101,30 @@ def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str
     max_iter = _coerce(hyperparameters.get("max_iter", 5000), int, 5000)
     C = _coerce(hyperparameters.get("C", 1.0), float, 1.0)
 
+    dataset_dir = channels.get("dataset")
+    if not dataset_dir:
+        raise RuntimeError(
+            "train() needs a 'dataset' channel (the digits.csv on S3); none was provided. "
+            "Declare an s3-ref 'dataset' input on the Train Model node and wire it to the data."
+        )
+    csv_path = Path(dataset_dir) / CSV_NAME
+    if not csv_path.is_file():
+        raise FileNotFoundError(
+            f"expected {CSV_NAME} in the 'dataset' channel, not found at {csv_path}. "
+            "Run export_digits.py and upload the CSV to the channel's S3 prefix."
+        )
+
     model_dir = _model_dir()
-    print(f"[train] seed={seed} max_iter={max_iter} C={C} model_dir={model_dir}", flush=True)
+    print(f"[train] seed={seed} max_iter={max_iter} C={C} data={csv_path} model_dir={model_dir}", flush=True)
 
     # Heavy imports kept inside the function so importing this module (tests, the wrapper
     # discovering `train`) stays cheap.
     import joblib
-    from sklearn.datasets import load_digits
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score
     from sklearn.model_selection import train_test_split
 
-    X, y = load_digits(return_X_y=True)
+    X, y = _load_digits_csv(csv_path)
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=seed)
     print(f"[train] {len(X_tr)} train / {len(X_te)} held-out", flush=True)
 
@@ -109,9 +141,11 @@ def train(hyperparameters: dict[str, Any], channels: dict[str, str]) -> dict[str
 
 
 def _main() -> int:
-    """Train the candidate locally for a quick smoke (real fit, real held-out score)."""
+    """Train the candidate locally for a quick smoke (real export → real fit → real held-out score)."""
     import argparse
     import json
+
+    from export_digits import export
 
     parser = argparse.ArgumentParser(description="Train the promotion-gate candidate locally.")
     parser.add_argument("--seed", type=int, default=0)
@@ -119,7 +153,14 @@ def _main() -> int:
     parser.add_argument("--C", type=float, default=1.0)
     args = parser.parse_args()
 
-    out = train({"seed": args.seed, "max_iter": args.max_iter, "C": args.C}, {})
+    # Mirror the cloud path: ensure digits.csv exists locally, then train from it as the dataset channel.
+    here = Path(__file__).resolve().parent
+    csv_path = here / CSV_NAME
+    if not csv_path.is_file():
+        n = export(csv_path)
+        print(f"[local] exported {n} rows to {csv_path}")
+
+    out = train({"seed": args.seed, "max_iter": args.max_iter, "C": args.C}, {"dataset": str(here)})
     print(json.dumps(out, indent=2))
     return 0
 

@@ -49,7 +49,8 @@ winning mAP becomes the candidate metric — set `config/gate.json` `metric` to 
 
 | Local | Canvas node | Notes |
 |---|---|---|
-| `model/candidate.py` `train_and_eval()` | **Train Model** | or a **Config·JSON** `candidate` value for a quick demo (no training) |
+| `train/finetune.py` `train(hyperparameters, channels)` | **Train Model** (build-from-code) | real sklearn; reads `digits.csv` from the `dataset` S3 channel. (`model/candidate.py` is the local-mirror equivalent run by `run_gate_local.py`.) |
+| `train/export_digits.py` → S3 | **Config·JSON** `dataset_uri` (`s3-ref`) → Train Model `dataset` | the digits CSV uploaded to S3, wired into the Train Model's `dataset` channel |
 | `config/gate.json` `baseline` | **Config·JSON** `baseline` | the current-prod metric to beat |
 | `run_code/eval_vs_baseline.py` | **Run Code** `eval_vs_baseline` | inputs `metrics`,`baseline`; outputs `report`,`beats` |
 | the `beats` branch | **Choice** `beats_baseline?` | rule `pass` (beats truthy) vs built-in `default` |
@@ -59,7 +60,10 @@ winning mAP becomes the candidate metric — set `config/gate.json` `metric` to 
 ## Layout
 
 ```
-model/candidate.py             # def train_and_eval(seed) -> {metrics, modelPackageArn}  (real sklearn)
+train/finetune.py              # build-from-code Train Model node: train(hyperparameters, channels) -> {model, metrics}
+train/export_digits.py         # exports sklearn digits -> digits.csv for upload to the `dataset` S3 channel
+train/requirements.txt         # scikit-learn, numpy, joblib (installed into the built training image)
+model/candidate.py             # def train_and_eval(seed) -> {metrics, modelPackageArn}  (local-mirror, built-in digits)
 model/requirements.txt         # scikit-learn
 run_code/eval_vs_baseline.py   # the Run Code node: main(inputs) -> {report, beats}
 run_code/promotion_gate/evaluation.py   # pure, unit-tested compare logic

@@ -1,6 +1,7 @@
 # Build-from-code training deps for the promotion-gate candidate. Conduit installs these into
 # the SageMaker training image it builds for you (curated base + these + train() + Conduit's
-# wrapper), then digest-pins it. No Dockerfile, no build_and_push. The `digits` dataset ships
-# inside scikit-learn, so the candidate needs no S3 channel.
+# wrapper), then digest-pins it. No Dockerfile, no build_and_push. The candidate trains on a real
+# S3 input: train() reads digits.csv from the node's `dataset` channel (see export_digits.py).
 scikit-learn>=1.3
+numpy>=1.24
 joblib>=1.3
